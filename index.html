@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+  <title>赛博滑雪 | Cyber Skiing</title>
+  
+  <meta name="description" content="赛博滑雪游戏 - 霓虹未来3D体验">
+  <meta name="keywords" content="赛博滑雪,3D游戏,手机游戏,未来运动">
+  <link rel="shortcut icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>�</text></svg>">
+<style>
+/* 使用系统字体替代外部字体 */
+html, body {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    background: linear-gradient(180deg, #0a0015 0%, #1a0033 50%, #2d1b4e 100%); /* 赛博朋克渐变背景 */
+    background-size: cover;
+    background-position: center;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+div {
+    user-select: none;
+}
+
+.label-death {
+    display: none;
+    z-index: 10;
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10rem;
+    color: white;
+
+    &.active {
+        display: block;
+    }
+}
+
+.label-death-bg {
+    content: " ";
+    z-index: 9;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 20rem;
+    transform: translate(-50%, -50%);
+    transition: all 2s ease;
+    background-color: black;
+    opacity: 0.7;
+
+    &.active {
+        top: 50%;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.label-score {
+    z-index: 10;
+    position: absolute;
+    left: 5vw;
+    bottom: 5vh;
+    font-size: 10rem;
+    transition: all 500ms ease;
+    color: #00ff41; /* 霓虹绿色文字 */
+    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41; /* 发光效果 */
+
+    &.stopped {
+        top: 50%;
+        left: 50%;
+        bottom: auto;
+        font-size: 15rem;
+        transform: translate(-50%, -50%);
+        color: #ff00ff; /* 霓虹粉色 */
+        text-shadow: 0 0 30px #ff00ff, 0 0 60px #ff00ff; /* 粉色发光 */
+    }
+}
+
+.label-restart {
+    display: none;
+    z-index: 100;
+    position: absolute;
+    padding: 1rem 2rem;
+    top: 75%;
+    left: 50%;
+    width: 100%;
+    text-align: center;
+    font-size: 5rem;
+    color: white;
+    transform: translate(-50%, -50%);
+
+    &.active {
+        display: block;
+    }
+}
+.page-footer {
+  position: fixed;
+  right: 35px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  color: black;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.page-footer a {
+  display: flex;
+  margin-left: 4px;
+}
+.touxiang{
+	bottom: 0px;
+	width:30px;
+	height:30px;
+}
+
+/* 移动端虚拟控制器 */
+.virtual-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    pointer-events: none;
+    padding: 0 20px;
+}
+
+.virtual-controls .control-button {
+    width: 70px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+}
+
+.virtual-controls .control-button.active {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(0.95);
+}
+
+.virtual-controls .control-button.special {
+    width: 80px;
+    height: 80px;
+    font-size: 28px;
+}
+
+/* 游戏状态显示 */
+.game-status {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .label-score {
+        font-size: 8rem;
+        left: 3vw;
+        bottom: 3vh;
+    }
+    
+    .label-death {
+        font-size: 8rem;
+    }
+    
+    .label-restart {
+        font-size: 4rem;
+        top: 70%;
+    }
+    
+    /* 在移动设备上显示虚拟控制器 */
+    .virtual-controls {
+        display: flex;
+    }
+    
+    /* 隐藏页面底部的广告链接 */
+    .page-footer {
+        display: none;
+    }
+}
+
+</style>
+
+
+
+
+
+
+
+</head>
+
+<body >
+  <div class="label-death">分数</div>
+<div class="label-death-bg"></div>
+<div class="label-score"></div>
+<div class="label-restart">按回车键重新开始</div>
+
+<!-- 移动端虚拟控制器 -->
+<div class="virtual-controls" id="virtualControls">
+    <button class="control-button" id="leftBtn" title="向左移动">⬅️</button>
+    <button class="control-button" id="restartBtn" title="重新开始">🔄</button>
+    <button class="control-button" id="rightBtn" title="向右移动">➡️</button>
+</div>
+
+<!-- 游戏状态显示 -->
+<div class="game-status" id="gameStatus" style="display: none;">
+    <div>🏂 滑雪游戏</div>
+    <div>得分: <span id="scoreDisplay">0</span></div>
+    <div>状态: <span id="gameState">准备开始</span></div>
+</div>
+  
+<script type="text/javascript" src="https://repo.bfw.wiki/bfwrepo/js/three.92.js"></script>
+<script type="text/javascript" src="https://repo.bfw.wiki/bfwrepo/js/mountain.plugins.js"></script>
+<script>
+// 页面加载完成后立即为重新开始按钮添加事件监听器
+window.addEventListener('DOMContentLoaded', function() {
+    const restartBtn = document.getElementById('restartBtn');
+    if (restartBtn) {
+        // 确保按钮始终可见且可点击
+        restartBtn.style.pointerEvents = 'auto';
+        restartBtn.disabled = false;
+        restartBtn.style.zIndex = '9999';
+        
+        // 为所有可能的事件类型添加监听器
+        restartBtn.addEventListener('click', function() {
+            window.location.reload(true);
+        });
+        
+        restartBtn.addEventListener('touchstart', function() {
+            window.location.reload(true);
+        });
+        
+        restartBtn.addEventListener('touchend', function() {
+            window.location.reload(true);
+        });
+        
+        restartBtn.addEventListener('mousedown', function() {
+            window.location.reload(true);
+        });
+        
+        restartBtn.addEventListener('mouseup', function() {
+            window.location.reload(true);
+        });
+    }
+});
+</script>
+      <script >
+class World {
+  constructor(wnd) {
+    this.window = wnd;
+    this.clock = new THREE.Clock();
+    this.isLoading = true;
+    this.loader = THREE.DefaultLoadingManager;
+    this.onLoadedCallbacks = [];
+    this.loader.onLoad = () => {
+      this.isLoading = false;
+      this.onLoadedCallbacks.forEach(cb => cb());
+    };
+    this.loader.onError = url => console.error(`There was an error loading ${url}`);
+
+    this.setupRenderer();
+    this.setupScene();
+    this.setupLighting();
+
+    // Auto resize engine
+    wnd.addEventListener('resize', () => {
+      this.renderer.setSize(wnd.innerWidth, wnd.innerHeight);
+    });
+
+    this.onRenderCallbacks = [];
+    this.animationMixers = [];
+    this.loadedFbx = {};
+  }
+
+  drawGridQuadrant(signX, signZ) {
+    const GRID_SIZE = 10;
+    const GRID_N = 20;
+
+    const sX = signX > 0 ? 1 : -1;
+    const sZ = signZ > 0 ? 1 : -1;
+    for (let i = 0; i < GRID_N; i++) {
+      for (let j = 0; j < GRID_N; j++) {
+        const offX = i * GRID_SIZE * sX;
+        const offZ = j * GRID_SIZE * sZ;
+        const geo = new THREE.BufferGeometry();
+        const verts = new Float32Array([
+        offX, 0, offZ,
+        offX, 0, offZ + GRID_SIZE,
+        offX + GRID_SIZE, 0, offZ + GRID_SIZE,
+        offX + GRID_SIZE, 0, offZ,
+        offX, 0, offZ]);
+
+        geo.addAttribute('position', new THREE.BufferAttribute(verts, 3));
+        const mat = new THREE.LineBasicMaterial({ color: 0 });
+        const line = new THREE.Line(geo, mat);
+        this.scene.add(line);
+      }
+    }
+  }
+
+  setupRenderer() {
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(this.window.innerWidth, this.window.innerHeight);
+    this.renderer = renderer;
+    this.window.document.body.appendChild(renderer.domElement);
+  }
+
+  setupScene() {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0520); // 深紫色赛博背景
+    this.scene = scene;
+  }
+
+  setupLighting() {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(ambientLight);
+    this.ambientLight = ambientLight;
+
+    const hemisphericLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.5);
+    hemisphericLight.position.y += 1500;
+    this.scene.add(hemisphericLight);
+  }
+
+  addAnimationMixer(mixer) {
+    this.animationMixers.push(mixer);
+  }
+
+  loadFbx(name, filename, addToScene = false, cb = () => {}) {
+    const fbxLoader = new THREE.FBXLoader(this.loader);
+    fbxLoader.load(filename, object => {
+      object.name = name;
+      if (this.loadedFbx[name]) {
+        console.log(`Warning: overwriting existing FBX '${name}'!`);
+      }
+      this.loadedFbx[name] = object;
+      if (addToScene) this.scene.add(object);
+      cb(null, object);
+    }, xhr => {
+      // console.log(xhr.loaded/xhr.total*100 + '% loaded')
+    }, xhr => {
+      const errMsg = `Error loading FBX '${name}': ${JSON.stringify(xhr)}!`;
+      console.error(errMsg);
+      cb(new Error(errMsg), null);
+    });
+  }
+
+  onLoaded(cb) {
+    if (typeof cb !== 'function') {
+      throw new Error(`${cb} must be a function!`);
+    }
+
+    if (this.isLoading) {
+      this.onLoadedCallbacks.push(cb);
+    } else {
+      // Already loaded, invoke callback immediately
+      cb();
+    }
+  }
+
+  onRender(cb) {
+    if (typeof cb !== 'function') {
+      throw new Error(`${cb} must be a function!`);
+    } else {
+      this.onRenderCallbacks.push(cb);
+    }
+  }
+
+  setCamera(camera) {
+    this.camera = camera;
+  }
+
+  teardown() {
+    cancelAnimationFrame(this.animationFrameId);
+    while (this.scene.children.length) {
+      const child = this.scene.children[0];
+      child.traverse(c => {
+        if (typeof c.dispose === 'function') {
+          c.dispose();
+        }
+      });
+      if (typeof child.dispose === 'function') {
+        child.dispose();
+      }
+      this.scene.remove(child);
+    }
+    this.scene = null;
+    this.camera = null;
+    this.clock = null;
+    this.loader = null;
+    this.onLoadedCallbacks = null;
+    this.onRenderCallbacks = null;
+    this.animationMixers = null;
+    Object.keys(this.loadedFbx).forEach(key => {
+      this.loadedFbx[key].traverse(child => {
+        if (typeof child.dispose === 'function') {
+          child.dispose();
+        }
+      });
+      this.loadedFbx[key] = null;
+      delete this.loadedFbx[key];
+    });
+    this.renderer.domElement.remove();
+    this.renderer = null;
+  }
+
+  render() {
+    // Store the delta so it can be passed around (for consistency)
+    const clockDelta = this.clock.getDelta();
+    // Run animations
+    this.animationMixers.forEach(mixer => mixer.update(clockDelta));
+    // Run onRender subscriptions
+    this.onRenderCallbacks.forEach(cb => cb(clockDelta));
+    // Render current frame only if camera available
+    if (this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    } else {
+      // console.error('No camera has been setup yet!')
+    }
+    // Next frame
+    this.animationFrameId = requestAnimationFrame(() => this.render());
+  }}
+
+
+class Player {
+  constructor(world) {
+    this.world = world;
+    this.speed = 100.; // scalar, pos units per tick
+    this.bearing = 0;
+    this.moveForward = true;
+    this.moveBackward = false;
+    this.moveLeft = false;
+    this.moveRight = false;
+    this.ROTATION_OFFSET_Y = 0;
+    this.dead = false;
+
+    this.attachControl();
+    this.setupModel();
+  }
+
+  get position() {
+    const model = this.model;
+    return model ? model.position : new THREE.Vector3(0, 0, 0);
+  }
+
+  setupModel() {
+    const world = this.world;
+
+    world.loadFbx('player', 'https://repo.bfw.wiki/bfwrepo/threemodel/player@skateboarding.fbx', true);
+    world.loadFbx('playerDying', 'https://repo.bfw.wiki/bfwrepo/threemodel/player@dying.fbx', false);
+    world.loadFbx('snowboard', 'https://repo.bfw.wiki/bfwrepo/threemodel/snowboard.fbx', true);
+
+    world.onLoaded(() => {
+      const player = world.loadedFbx['player'];
+      const playerDying = world.loadedFbx['playerDying'];
+      const snowboard = world.loadedFbx['snowboard'];
+
+      this.model = player;
+      let footBone;
+      player.traverse(child => {
+        if (child.type === 'Bone' &&
+        child.name === 'mixamorigLeftFoot') {
+          footBone = child;
+        }
+      });
+      // Position camera, set the scale, etc
+      snowboard.scale.set(4, 4, 4);
+      footBone.add(snowboard);
+      snowboard.rotateX(-2.1);
+      snowboard.rotateZ(-0.6);
+      snowboard.translateX(105);
+      snowboard.translateZ(13);
+
+      player.traverse(m => {
+        if (m.type === 'SkinnedMesh' ||
+        m.type === 'Mesh') {
+          m.castShadow = true;
+        }
+      });
+      player.scale.set(0.1, 0.1, 0.1);
+      player.rotation.x = Math.PI / 48;
+
+      // Add the loaded animations to the base mesh
+      // Name them for convenience
+      player.animations[0].name = 'idle';
+      playerDying.animations[0].name = 'dying';
+      player.animations.push(...playerDying.animations);
+
+      // Setup AnimationMixer for loaded model
+      const mixer = new THREE.AnimationMixer(player);
+      world.addAnimationMixer(mixer);
+      this.animationMixer = mixer;
+
+      // Reset clip durations
+      player.animations.forEach(clip => {
+        clip.resetDuration();
+      });
+
+      // Play idle animation
+      this.playAnimation('idle');
+
+      world.onRender(clockDelta => this.move(clockDelta));
+    });
+  }
+
+  attachControl(container = this.world.window) {
+    let mouseDownRunning = false;
+    container.addEventListener('keydown', event => {
+      switch (event.code) {
+        case 'KeyW':
+          this.moveForward = true;
+          this.moveBackward = false;
+          break;
+        case 'KeyS':
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          this.moveLeft = true;
+          this.moveRight = false;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          this.moveLeft = false;
+          this.moveRight = true;
+          break;}
+
+    });
+    container.addEventListener('keyup', event => {
+      switch (event.code) {
+        case 'KeyW':
+          // if (!mouseDownRunning) this.moveForward = false
+          break;
+        case 'KeyS':
+          this.moveBackward = false;
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          this.moveLeft = false;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          this.moveRight = false;
+          break;}
+
+    });
+    container.addEventListener('touchstart', event => {
+      // 检查触摸是否发生在虚拟控制器上，如果是则不处理
+      if (event.target.closest('.virtual-controls')) {
+        return;
+      }
+      
+      const touches = event.changedTouches;
+      const touch = touches[0];
+      if (touch.clientX < window.innerWidth / 2) {
+        this.moveLeft = true;
+        this.moveRight = false;
+      } else {
+        this.moveLeft = false;
+        this.moveRight = true;
+      }
+    });
+    container.addEventListener('touchend', event => {
+      // 检查触摸是否发生在虚拟控制器上，如果是则不处理
+      if (event.target.closest('.virtual-controls')) {
+        return;
+      }
+      
+      this.moveLeft = false;
+      this.moveRight = false;
+    });
+  }
+
+  playAnimation(name, loop = true) {
+    if (this.lastAnimation === name) return;
+
+    const loopMode = loop ? THREE.LoopRepeat : THREE.LoopOnce;
+
+    const lastClip = THREE.AnimationClip.findByName(this.model, this.lastAnimation);
+    const nextClip = THREE.AnimationClip.findByName(this.model, name);
+    if (nextClip instanceof THREE.AnimationClip) {
+      const existingAction = this.animationMixer.existingAction(lastClip);
+      this.animationMixer.stopAllAction();
+      const nextAction = this.animationMixer.clipAction(nextClip).
+      setLoop(loopMode);
+      nextAction.clampWhenFinished = !loop;
+      if (existingAction) {
+        nextAction.play().crossFadeFrom(existingAction, 0.2);
+      } else {
+        nextAction.play();
+      }
+    }
+    this.lastAnimation = name;
+  }
+
+  die() {
+    this.timeOfDeath = this.world.clock.elapsedTime;
+    this.speed = -50;
+    this.playAnimation('dying', false);
+  }
+
+  move(clockDelta) {
+    if (this.dead) {
+      return;
+    }
+
+    if (this.timeOfDeath &&
+    this.world.clock.elapsedTime - this.timeOfDeath > 2.5) {
+      this.dead = true;
+    }
+
+    // Must be run only AFTER animations are setup
+    const t = clockDelta;
+    const moveX = this.moveLeft || this.moveRight;
+    const moveZ = this.moveForward || this.moveBackward;
+
+    // Acceleration
+    this.speed += t * 9.81;
+    // Maximum velocity
+    this.speed = Math.min(this.speed, 1000);
+
+    // Calculate displacement vectors
+    let trueBearingX = t * this.speed * Math.cos(this.bearing + Math.PI / 2);
+    let trueBearingZ = t * this.speed * Math.sin(this.bearing + Math.PI / 2);
+    let perpBearingX = t * this.speed * Math.cos(this.bearing);
+    let perpBearingZ = t * this.speed * Math.sin(this.bearing);
+
+    // Forward & backward - mutually exclusive
+    if (this.moveForward) {
+      this.model.position.x += trueBearingX;
+      this.model.position.z += trueBearingZ;
+    } else if (this.moveBackward) {
+      this.model.position.x -= trueBearingX * 1 / 3.;
+      this.model.position.z -= trueBearingZ * 1 / 3.;
+    }
+
+    // Left & right
+    if (this.moveLeft) {
+      this.model.position.x += perpBearingX * 3 / 8;
+      this.model.position.z += perpBearingZ * 3 / 8;
+      this.model.rotation.y = Math.min(Math.PI / 8, this.model.rotation.y + Math.PI / 2 * t);
+      this.model.rotation.z = Math.max(-Math.PI / 16, this.model.rotation.z - Math.PI / 2 * t);
+    } else if (this.moveRight) {
+      this.model.position.x -= perpBearingX * 3 / 8;
+      this.model.position.z -= perpBearingZ * 3 / 8;
+      this.model.rotation.y = Math.max(-Math.PI / 8, this.model.rotation.y - Math.PI / 2 * t);
+      this.model.rotation.z = Math.min(Math.PI / 16, this.model.rotation.z + Math.PI / 2 * t);
+    } else {
+      this.model.rotation.y -= this.model.rotation.y * 2 * t;
+      this.model.rotation.z -= this.model.rotation.z * 2 * t;
+    }
+  }}
+
+
+const cloneFbx = fbx => {
+  const clone = fbx.clone(true);
+  clone.animations = fbx.animations;
+  clone.skeleton = { bones: [] };
+
+  const skinnedMeshes = {};
+
+  fbx.traverse(node => {
+    if (node.isSkinnedMesh) {
+      skinnedMeshes[node.name] = node;
+    }
+  });
+
+  const cloneBones = {};
+  const cloneSkinnedMeshes = {};
+
+  clone.traverse(node => {
+    if (node.isBone) {
+      cloneBones[node.name] = node;
+    }
+
+    if (node.isSkinnedMesh) {
+      cloneSkinnedMeshes[node.name] = node;
+    }
+  });
+
+  for (let name in skinnedMeshes) {
+    const skinnedMesh = skinnedMeshes[name];
+    const skeleton = skinnedMesh.skeleton;
+    const cloneSkinnedMesh = cloneSkinnedMeshes[name];
+
+    const orderedCloneBones = [];
+
+    for (let i = 0; i < skeleton.bones.length; i++) {
+      const cloneBone = cloneBones[skeleton.bones[i].name];
+      orderedCloneBones.push(cloneBone);
+    }
+
+    cloneSkinnedMesh.bind(
+    new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses),
+    cloneSkinnedMesh.matrixWorld);
+
+    // For animation to work correctly:
+    clone.skeleton.bones.push(cloneSkinnedMesh);
+    clone.skeleton.bones.push(...orderedCloneBones);
+  }
+
+  return clone;
+};
+
+class Mountain {
+  constructor(world, player) {
+    this.world = world;
+    this.player = player;
+
+    this.N_VISIBLE_TREES = 50;
+    this.TREES_LOD = 1000;
+    this.STAGE_WIDTH = 750;
+    this.STAGE_LENGTH = 10000;
+    this.trees = [];
+    this.groundCount = 0;
+    this.grounds = [];
+
+    const snowMap = new THREE.TextureLoader().load('https://repo.bfw.wiki/bfwrepo/images/ski/snow.jpg');
+    snowMap.wrapS = THREE.RepeatWrapping;
+    snowMap.wrapT = THREE.RepeatWrapping;
+    snowMap.repeat.set(this.STAGE_WIDTH / 100, this.STAGE_LENGTH / 100);
+    this.snowMap = snowMap;
+
+    // Fog
+    this.world.scene.fog = new THREE.Fog(0x0a0520, 100, this.TREES_LOD); // 深紫色雾气
+
+    this.world.loadFbx('tree', 'https://repo.bfw.wiki/bfwrepo/threemodel/tree.fbx', false);
+    this.world.onLoaded(() => {
+      // Create first ground iteration
+      this.createGround();
+      const tree = this.world.loadedFbx['tree'];
+      tree.traverse(m => {
+        if (m.type === 'SkinnedMesh' ||
+        m.type === 'Mesh') {
+          m.castShadow = true;
+        }
+      });
+      tree.rotation.x = -Math.PI / 16;
+      tree.position.y = -10;
+      tree.children[0].material;
+      this.world.onRender(t => this.render(t));
+    });
+  }
+
+  createGround() {
+    // Ground
+    const groundGeo = new THREE.BoxGeometry(this.STAGE_WIDTH, 100, this.STAGE_LENGTH);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x1a0066, map: this.snowMap }); // 深蓝紫色地面
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.receiveShadow = true;
+    this.world.scene.add(ground);
+    ground.position.y -= 50;
+
+    // Mountains (sidewalls)
+    const mountainGeo = new THREE.BoxGeometry(1000, 100, this.STAGE_LENGTH);
+    const mountainMat = new THREE.MeshLambertMaterial({ color: 0x2d1b69, map: this.snowMap }); // 紫色山坡
+    const leftWall = new THREE.Mesh(mountainGeo, mountainMat);
+    this.world.scene.add(leftWall);
+    leftWall.position.x += this.STAGE_WIDTH - 100;
+    leftWall.position.y += 150;
+    leftWall.rotation.z = Math.PI / 4;
+    const rightWall = new THREE.Mesh(mountainGeo, mountainMat);
+    this.world.scene.add(rightWall);
+    rightWall.position.x -= this.STAGE_WIDTH - 100;
+    rightWall.position.y = 150;
+    rightWall.rotation.z = -Math.PI / 4;
+
+    ground.position.z += this.groundCount * this.STAGE_LENGTH + this.STAGE_LENGTH / 2;
+    leftWall.position.z += this.groundCount * this.STAGE_LENGTH + this.STAGE_LENGTH / 2;
+    rightWall.position.z += this.groundCount * this.STAGE_LENGTH + this.STAGE_LENGTH / 2;
+
+    this.grounds.push({ index: this.groundCount++, ground, leftWall, rightWall });
+  }
+
+  disposeGround(index) {
+    // TODO: check proper disposal
+    const grounds = this.grounds;
+    let ground = grounds.find(g => g.index === index);
+    this.world.scene.remove(ground);
+    grounds.splice(grounds.indexOf(ground), 1);
+    ground.ground.traverse(t => {
+      if (typeof t.dispose === 'function') {
+        t.dispose();
+      }
+    });
+    ground.leftWall.traverse(t => {
+      if (typeof t.dispose === 'function') {
+        t.dispose();
+      }
+    });
+    ground.rightWall.traverse(t => {
+      if (typeof t.dispose === 'function') {
+        t.dispose();
+      }
+    });
+    ground = null;
+  }
+
+  addTree() {
+    // must be called after onLoaded
+    const world = this.world;
+    const treeBase = world.loadedFbx['tree'];
+    const tree = cloneFbx(treeBase);
+    this.trees.push(tree);
+    world.scene.add(tree);
+
+    // Calculate random position
+    const p = this.player;
+    const x = Math.random() * this.STAGE_WIDTH - this.STAGE_WIDTH / 2;
+    const z = p.position.z + this.TREES_LOD * (3 / 4) + Math.random() * this.TREES_LOD * 2;
+    Object.assign(tree.position, { x, z });
+
+    // Precalc intersection bounding box
+    const treeGeo = new THREE.BoxGeometry(15, 200, 15);
+    const treeBoundingMesh = new THREE.Mesh(treeGeo);
+    Object.assign(treeBoundingMesh.position, tree.position);
+    const treeBox = new THREE.Box3().setFromObject(treeBoundingMesh);
+    tree.collisionBoundingBox = treeBox;
+
+    return tree;
+  }
+
+  disposeTree(tree) {
+    // TODO: check proper disposal
+    const trees = this.trees;
+    this.world.scene.remove(tree);
+    trees.splice(trees.indexOf(tree), 1);
+    tree.traverse(t => {
+      if (typeof t.dispose === 'function') {
+        t.dispose();
+      }
+    });
+    tree = null;
+  }
+
+  checkCollision() {
+    const trees = this.trees;
+    const player = this.player;
+    const playerBox = new THREE.Box3().setFromObject(player.model);
+
+    if (player.position.x < -this.STAGE_WIDTH / 2 ||
+    player.position.x > this.STAGE_WIDTH / 2) {
+      player.die();
+    }
+
+    trees.forEach(tree => {
+      const intersects = playerBox.intersectsBox(tree.collisionBoundingBox);
+      if (intersects) {
+        player.die();
+      }
+    });
+  }
+
+  render(t) {
+    const p = this.player;
+    let trees = this.trees.slice();
+
+    this.checkCollision();
+
+    // Cull trees behind player
+    trees = trees.filter(tree => {
+      if (tree.position.z < p.position.z - this.TREES_LOD) {
+        this.disposeTree(tree);
+        return false;
+      } else {
+        return true;
+      }
+    });
+
+    // Refill trees if needed
+    if (trees.length < this.N_VISIBLE_TREES) {
+      for (let i = trees.length; i < this.N_VISIBLE_TREES; i++) {
+        const tree = this.addTree();
+      }
+    }
+
+    // Refill ground
+    if (Math.ceil(p.position.z / this.STAGE_LENGTH + 0.5) > this.groundCount) {
+      this.disposeGround(this.groundCount - 1);
+      this.createGround();
+    }
+  }}
+
+
+class RpgCamera extends THREE.PerspectiveCamera {
+  constructor(world, player) {
+    super(90, world.window.innerWidth / world.window.innerHeight, 0.1, 1500);
+    this.player = player;
+    this.world = world;
+    // Mouse
+    this.radius = 25;
+    this.alpha = 0;
+    this.beta = Math.PI * 3 / 4;
+    this.offsetY = 12;
+
+    this.attachControl();
+    world.onLoaded(() => {
+      // Setting the camera AFTER meshes have loaded prevents glitchiness
+      world.setCamera(this);
+      world.onRender(t => this.update(t));
+    });
+  }
+
+  update(t) {
+    if (this.player.timeOfDeath && !this.player.dead) {
+      this.alpha += (Math.PI - this.alpha) * 5 * t;
+    }
+    if (this.player.dead) {
+      this.alpha += Math.PI * t * 0.1;
+    }
+
+    const camPos = this.position;
+    const pPos = this.player.position;
+    camPos.x = pPos.x - Math.cos(this.alpha + Math.PI / 2) * this.radius;
+    camPos.z = pPos.z - Math.sin(this.alpha + Math.PI / 2) * this.radius;
+    camPos.y = pPos.y + this.offsetY - Math.cos(this.beta) * this.radius;
+
+    this.lookAt(new THREE.Vector3(0, this.offsetY, 0).add(this.player.position));
+  }
+
+  attachControl(container = this.world.renderer.domElement) {
+    const wnd = this.world.window;
+    const doc = wnd.document;
+    const canvas = this.world.renderer.domElement;
+    wnd.addEventListener('resize', () => {
+      this.aspect = wnd.innerWidth / wnd.innerHeight;
+      this.updateProjectionMatrix();
+    });
+    doc.addEventListener('mousemove', event => {
+      const { buttons, movementX, movementY } = event;
+      if (buttons & 1 << 0) {
+        // primary button (left)
+        this.beta = Math.min(Math.PI,
+        Math.max(75 * Math.PI / 180,
+        this.beta + movementY * 0.01)); // clamp [45,180]deg
+      }
+    });
+    doc.addEventListener('mousedown', event => {
+      if (!doc.pointerLockElement) canvas.requestPointerLock();
+    }, false);
+    doc.addEventListener('mouseup', event => {
+      if (!!doc.pointerLockElement) doc.exitPointerLock();
+    });
+    doc.addEventListener('mousewheel', event => {
+      const { deltaY } = event;
+      this.radius = Math.min(Math.max(10, this.radius + deltaY * 0.02), 50);
+    });
+    doc.addEventListener('contextmenu', event => {
+      event.preventDefault();
+    });
+  }}
+
+
+let world;
+let player;
+let mountain;
+let camera;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const scoreboard = document.querySelector('.label-score');
+  const labelRekt = document.querySelector('.label-death');
+  const labelRektBg = document.querySelector('.label-death-bg');
+  const labelRestart = document.querySelector('.label-restart');
+
+  // 初始化移动端优化
+  initMobileOptimization();
+
+  function initiateGame() {
+    window.world = new World(window);
+    window.player = new Player(window.world);
+    window.mountain = new Mountain(window.world, window.player);
+    window.camera = new RpgCamera(window.world, window.player);
+
+    window.world.onLoaded(() => {
+      window.world.onRender(t => {
+        if (!window.player.timeOfDeath) {
+          scoreboard.textContent = parseInt(window.world.clock.elapsedTime * 10);
+        } else {
+          labelRestart.classList.add('active');
+          scoreboard.classList.add('stopped');
+          labelRekt.classList.add('active');
+          labelRektBg.classList.add('active');
+        }
+      });
+    });
+
+    window.world.render();
+  }
+
+  initiateGame();
+
+  window.addEventListener('keydown', event => {
+    if (event.code === 'Enter' && window.player.timeOfDeath) {
+      // 按回车键刷新页面重新开始
+      location.reload();
+    }
+    else if (event.code === 'ArrowLeft') {
+      // 左箭头键
+      event.preventDefault();
+      const leftBtn = document.getElementById('leftBtn');
+      if (window.player) {
+        window.player.moveLeft = true;
+        window.player.moveRight = false;
+      }
+      if (leftBtn) {
+        leftBtn.classList.add('active');
+      }
+    }
+    else if (event.code === 'ArrowRight') {
+      // 右箭头键
+      event.preventDefault();
+      const rightBtn = document.getElementById('rightBtn');
+      if (window.player) {
+        window.player.moveLeft = false;
+        window.player.moveRight = true;
+      }
+      if (rightBtn) {
+        rightBtn.classList.add('active');
+      }
+    }
+  });
+  
+  window.addEventListener('keyup', event => {
+    if (event.code === 'ArrowLeft') {
+      // 左箭头键松开
+      event.preventDefault();
+      const leftBtn = document.getElementById('leftBtn');
+      if (window.player) {
+        window.player.moveLeft = false;
+      }
+      if (leftBtn) {
+        leftBtn.classList.remove('active');
+      }
+    }
+    else if (event.code === 'ArrowRight') {
+      // 右箭头键松开
+      event.preventDefault();
+      const rightBtn = document.getElementById('rightBtn');
+      if (window.player) {
+        window.player.moveRight = false;
+      }
+      if (rightBtn) {
+        rightBtn.classList.remove('active');
+      }
+    }
+  });
+});
+
+    // 更新移动端状态显示
+    function updateMobileStatus() {
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const gameState = document.getElementById('gameState');
+        
+        // 监听分数变化
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    const scoreText = document.querySelector('.label-score').textContent;
+                    if (scoreText && scoreText !== '0') {
+                        scoreDisplay.textContent = scoreText;
+                    }
+                }
+            });
+        });
+        
+        const scoreElement = document.querySelector('.label-score');
+        if (scoreElement) {
+            observer.observe(scoreElement, { childList: true });
+        }
+        
+        // 监听游戏状态
+        setInterval(() => {
+            if (window.player) {
+                if (window.player.dead) {
+                    gameState.textContent = '游戏结束';
+                } else if (window.player.timeOfDeath) {
+                    gameState.textContent = '等待重新开始';
+                } else {
+                    gameState.textContent = '游戏中';
+                }
+            }
+        }, 1000);
+    }
+    
+    function initVirtualControls() {
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        
+        // 左移按钮
+        leftBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = true;
+                window.player.moveRight = false;
+                this.classList.add('active');
+            }
+        });
+        
+        leftBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = false;
+            }
+            this.classList.remove('active');
+        });
+        
+        // 右移按钮
+        rightBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = false;
+                window.player.moveRight = true;
+                this.classList.add('active');
+            }
+        });
+        
+        rightBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveRight = false;
+            }
+            this.classList.remove('active');
+        });
+        
+        // 重新开始按钮 - 触摸支持
+        restartBtn.addEventListener('touchstart', function(e) {
+            this.classList.add('active');
+            // 使用强制刷新从服务器重新加载页面
+            window.location.reload(true);
+        });
+        
+        // 重新开始按钮 - 鼠标支持
+        restartBtn.addEventListener('click', function(e) {
+            this.classList.add('active');
+            // 使用强制刷新从服务器重新加载页面
+            window.location.reload(true);
+        });
+        
+        // 确保按钮始终可点击
+        restartBtn.style.pointerEvents = 'auto';
+        restartBtn.disabled = false;
+        
+        // 调试信息：确认按钮已找到并设置
+        console.log('重新开始按钮已初始化:', restartBtn);
+        console.log('按钮事件监听器:', restartBtn.eventListeners);
+        
+        // 添加鼠标支持
+        leftBtn.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = true;
+                window.player.moveRight = false;
+                this.classList.add('active');
+            }
+        });
+        
+        leftBtn.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = false;
+            }
+            this.classList.remove('active');
+        });
+        
+        rightBtn.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveLeft = false;
+                window.player.moveRight = true;
+                this.classList.add('active');
+            }
+        });
+        
+        rightBtn.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            if (window.player) {
+                window.player.moveRight = false;
+            }
+            this.classList.remove('active');
+        });
+        
+        // 已移除重复的点击事件监听器，避免与onclick属性冲突
+        
+        // 防止双击缩放
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    }
+    
+    // 移动端优化
+    function initMobileOptimization() {
+        // 检测移动设备（改进检测逻辑）
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(navigator.userAgent) || 
+                       (window.innerWidth < 768 && 'ontouchstart' in window);
+        
+        // 强制在小屏幕设备上显示虚拟控制器
+        const forceShowControls = window.innerWidth < 768;
+        
+        if (isMobile || forceShowControls) {
+            // 显示虚拟控制器和游戏状态
+            const virtualControls = document.getElementById('virtualControls');
+            const gameStatus = document.getElementById('gameStatus');
+            
+            if (virtualControls) {
+                virtualControls.style.display = 'flex';
+            }
+            if (gameStatus) {
+                gameStatus.style.display = 'block';
+            }
+            
+            // 初始化虚拟控制器
+            initVirtualControls();
+            
+            // 监听分数变化
+            updateMobileStatus();
+            
+            // 禁用页面滚动
+            document.addEventListener('touchmove', function(e) {
+                if (e.target.closest('.virtual-controls')) return;
+                e.preventDefault();
+            }, { passive: false });
+            
+            // 优化触摸响应
+            document.body.style.touchAction = 'manipulation';
+            
+            // 处理屏幕方向变化
+            window.addEventListener('orientationchange', function() {
+                setTimeout(function() {
+                    window.scrollTo(0, 0);
+                }, 100);
+            });
+        }
+        // 确保在任何设备上都初始化虚拟控制器，以便在小屏幕时自动显示
+        else {
+            // 仅初始化虚拟控制器，但不立即显示
+            initVirtualControls();
+            
+            // 监听窗口大小变化，在小屏幕时显示控制器
+            window.addEventListener('resize', function() {
+                if (window.innerWidth < 768) {
+                    const virtualControls = document.getElementById('virtualControls');
+                    const gameStatus = document.getElementById('gameStatus');
+                    
+                    if (virtualControls) {
+                        virtualControls.style.display = 'flex';
+                    }
+                    if (gameStatus) {
+                        gameStatus.style.display = 'block';
+                    }
+                }
+            });
+        }
+    }
+
+    </script>
+
+  
+
+</body>
+
+</html>
+ 
