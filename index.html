@@ -20,7 +20,7 @@
         .restart-btn.show { display: block; }
         .restart-btn:hover { transform: translate(-50%, -50%) scale(1.1); }
         
-        /* Mobile controls */
+        /* 移动端控制按钮 */
         .mobile-controls { display: none; position: fixed; bottom: 20px; left: 0; right: 0; justify-content: space-around; align-items: center; z-index: 100; padding: 0 20px; pointer-events: none; }
         .control-btn { width: 80px; height: 80px; background: rgba(0, 255, 255, 0.3); border: 3px solid rgba(0, 255, 255, 0.6); border-radius: 50%; color: white; font-size: 2rem; font-weight: bold; display: flex; align-items: center; justify-content: center; pointer-events: all; user-select: none; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0, 255, 255, 0.4); }
         .control-btn.active { background: rgba(0, 255, 255, 0.6); transform: scale(0.9); }
@@ -51,33 +51,36 @@
         <button class="restart-btn" id="restartBtn">🔄 RESTART</button>
     </div>
     
-    <!-- Mobile Controls -->
-    <div class="mobile-controls" id="mobileControls">
-        <button class="control-btn" id="leftBtn">⬅️</button>
-        <button class="control-btn" id="rightBtn">➡️</button>
-    </div>
-    
-    <!-- Mobile controls -->
+    <!-- 移动端控制按钮 -->
     <div class="mobile-controls" id="mobileControls">
         <button class="control-btn" id="leftBtn">⬅️</button>
         <button class="control-btn" id="rightBtn">➡️</button>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js 3D引擎 本地文件 -->
+    <script src="three.min.js"></script>
     <script>
-        // Check if Three.js loaded
+        // 检查Three.js是否加载成功
         if (typeof THREE === 'undefined') {
             document.body.innerHTML = '<div style="color:white;font-size:2rem;text-align:center;padding:50px;">Three.js未加载！<br>请确保有网络连接。<br><br>或者下载本地版本：<br><a href="下载资源.html" style="color:#0ff;">点击这里下载Three.js</a></div>';
             throw new Error('Three.js not loaded');
         }
         
+        // ========== 游戏配置 ==========
         const CONFIG = {
-            track: { width: 600, length: 4000 },
-            player: { speed: 6, turnSpeed: 5 },
-            obstacles: { count: 35, spacing: 180 },
-            camera: { distance: 120, height: 60 }
+            track: { width: 600, length: 4000 },           // 赛道宽度和长度
+            player: { speed: 5, turnSpeed: 5 },            // 玩家速度和转向速度
+            obstacles: { 
+                maxVisible: 18,                            // 最多同时显示18个障碍物（3的倍数）
+                spawnDistance: 1000,                       // 在玩家前方1000单位处开始生成
+                cullDistance: 300,                         // 玩家后方300单位处移除障碍物
+                waveSpacing: 200                           // 每波障碍物之间的间距
+            },
+            camera: { distance: 120, height: 60 }          // 相机距离和高度
         };
 
+        // ========== 游戏引擎类 ==========
+        // 负责渲染器、场景和灯光的初始化
         class GameEngine {
             constructor() {
                 this.canvas = document.getElementById('canvas3d');
@@ -87,39 +90,49 @@
                 this.initLights();
             }
 
+            // 初始化渲染器
             initRenderer() {
                 this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.enabled = true;  // 启用阴影
             }
 
+            // 初始化场景
             initScene() {
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x2a2a5e);
-                this.scene.fog = new THREE.Fog(0x2a2a5e, 100, 600);
+                this.scene.background = new THREE.Color(0x2a2a5e);  // 深紫色背景
+                this.scene.fog = new THREE.Fog(0x2a2a5e, 100, 600);  // 添加雾效
             }
 
+            // 初始化灯光
             initLights() {
+                // 环境光
                 const ambient = new THREE.AmbientLight(0x6060a0, 0.8);
                 this.scene.add(ambient);
+                
+                // 方向光（用于阴影）
                 const directional = new THREE.DirectionalLight(0xa0a0ff, 1.0);
                 directional.position.set(100, 200, 100);
                 directional.castShadow = true;
                 this.scene.add(directional);
             }
 
+            // 渲染场景
             render(camera) {
                 this.renderer.render(this.scene, camera);
             }
         }
 
+        // ========== 游戏相机类 ==========
+        // 跟随玩家的第三人称相机
         class GameCamera extends THREE.PerspectiveCamera {
             constructor(target) {
                 super(90, window.innerWidth / window.innerHeight, 0.1, 1500);
-                this.target = target;
+                this.target = target;  // 跟随目标（玩家）
                 this.offset = CONFIG.camera;
             }
 
+            // 更新相机位置，跟随玩家
             updatePos() {
                 const pos = this.target.getPos();
                 this.position.set(pos.x, pos.y + this.offset.height, pos.z + this.offset.distance);
@@ -127,16 +140,18 @@
             }
         }
 
+        // ========== 赛道类 ==========
         class Track {
             constructor(engine) {
                 this.engine = engine;
-                this.createFloor();
-                this.createWalls();
-                this.createStars();
-                this.createSpaceRocks(); // Add decorative rocks
+                this.createFloor();      // 创建地面
+                this.createWalls();      // 创建墙壁
+                this.createStars();      // 创建星空
+                this.createSpaceRocks(); // 创建装饰性太空岩石
             }
 
             createFloor() {
+                // 主地面
                 const geo = new THREE.PlaneGeometry(CONFIG.track.width, CONFIG.track.length);
                 const mat = new THREE.MeshStandardMaterial({ 
                     color: 0x3a3a6e, 
@@ -148,6 +163,7 @@
                 this.floor.receiveShadow = true;
                 this.engine.scene.add(this.floor);
 
+                // 网格线
                 const grid = new THREE.GridHelper(CONFIG.track.width, 30, 0x00ffff, 0x0060a0);
                 grid.position.y = 1;
                 this.engine.scene.add(grid);
@@ -158,21 +174,25 @@
                 const mat = new THREE.MeshStandardMaterial({ 
                     color: 0x4a4a7e,
                     metalness: 0.3,
-                    roughness: 0.7
+                    roughness: 0.7,
+                    transparent: true,
+                    opacity: 0.6  // 半透明，仅作视觉引导
                 });
                 
+                // 左墙
                 const left = new THREE.Mesh(geo, mat);
                 left.position.set(-CONFIG.track.width / 2 - 40, 75, 0);
-                left.castShadow = true;
+                // 不设置 castShadow，墙壁不会阻挡玩家
                 this.engine.scene.add(left);
 
+                // 右墙
                 const right = new THREE.Mesh(geo, mat);
                 right.position.set(CONFIG.track.width / 2 + 40, 75, 0);
-                right.castShadow = true;
                 this.engine.scene.add(right);
             }
 
             createStars() {
+                // 生成800个星星粒子
                 const geo = new THREE.BufferGeometry();
                 const positions = new Float32Array(800 * 3);
                 for (let i = 0; i < 800 * 3; i += 3) {
@@ -186,7 +206,7 @@
             }
 
             createSpaceRocks() {
-                // Add decorative floating rocks in the background
+                // 添加背景装饰岩石（远离赛道，避免干扰游戏）
                 for (let i = 0; i < 20; i++) {
                     const size = Math.random() * 30 + 10;
                     const geo = new THREE.DodecahedronGeometry(size, 0);
@@ -196,8 +216,10 @@
                         metalness: 0.1
                     });
                     const rock = new THREE.Mesh(geo, mat);
+                    // 将岩石放置在赛道外侧，远离玩家路径
+                    const side = Math.random() < 0.5 ? -1 : 1;
                     rock.position.set(
-                        (Math.random() - 0.5) * 1000,
+                        side * (CONFIG.track.width / 2 + Math.random() * 400 + 200), // 远离赛道
                         Math.random() * 200 + 100,
                         (Math.random() - 0.5) * 3000
                     );
@@ -211,20 +233,21 @@
             }
         }
 
+        // ========== 玩家类 ==========
         class Player {
             constructor(engine) {
                 this.engine = engine;
                 this.alive = true;
-                this.turnDir = 0;
-                this.createSpaceSkater(); // Create a space skater character
+                this.turnDir = 0;  // 转向方向：-1左，0无，1右
+                this.createSpaceSkater();
                 this.setupInput();
             }
 
             createSpaceSkater() {
-                // Create a humanoid space skater
+                // 创建太空滑板手角色
                 this.group = new THREE.Group();
                 
-                // Body
+                // 身体
                 const bodyGeo = new THREE.CylinderGeometry(8, 10, 25, 8);
                 const bodyMat = new THREE.MeshStandardMaterial({ 
                     color: 0x00ffff,
@@ -237,7 +260,7 @@
                 body.position.y = 12;
                 this.group.add(body);
 
-                // Head
+                // 头部
                 const headGeo = new THREE.SphereGeometry(6, 16, 16);
                 const headMat = new THREE.MeshStandardMaterial({ 
                     color: 0xffffff,
@@ -248,7 +271,7 @@
                 head.position.y = 28;
                 this.group.add(head);
 
-                // Helmet visor
+                // 头盔面罩
                 const visorGeo = new THREE.SphereGeometry(6.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
                 const visorMat = new THREE.MeshStandardMaterial({ 
                     color: 0xff00ff,
@@ -261,7 +284,7 @@
                 visor.position.y = 28;
                 this.group.add(visor);
 
-                // Skateboard
+                // 滑板
                 const boardGeo = new THREE.BoxGeometry(18, 3, 35);
                 const boardMat = new THREE.MeshStandardMaterial({ 
                     color: 0xff00ff,
@@ -272,7 +295,7 @@
                 board.position.y = 0;
                 this.group.add(board);
 
-                // Glow effect
+                // 发光效果
                 const glowGeo = new THREE.SphereGeometry(20, 16, 16);
                 const glowMat = new THREE.MeshBasicMaterial({ 
                     color: 0x00ffff,
@@ -288,7 +311,7 @@
             }
 
             setupInput() {
-                // Keyboard controls
+                // 键盘控制
                 window.addEventListener('keydown', (e) => {
                     if (e.key === 'ArrowLeft' || e.key === 'a') this.turnDir = -1;
                     if (e.key === 'ArrowRight' || e.key === 'd') this.turnDir = 1;
@@ -299,7 +322,7 @@
                     }
                 });
 
-                // Touch swipe controls
+                // 触摸滑动控制
                 let touchX = 0;
                 window.addEventListener('touchstart', (e) => { 
                     if (e.target.closest('.mobile-controls') || e.target.closest('.restart-btn')) return;
@@ -315,7 +338,7 @@
                     this.turnDir = 0; 
                 });
                 
-                // Mobile button controls
+                // 移动端按钮控制
                 this.setupMobileButtons();
             }
             
@@ -353,12 +376,23 @@
             update() {
                 if (!this.alive) return;
                 
+                // 左右移动
                 this.group.position.x += this.turnDir * CONFIG.player.turnSpeed;
-                const maxX = CONFIG.track.width / 2 - 25;
-                this.group.position.x = Math.max(-maxX, Math.min(maxX, this.group.position.x));
+                
+                // 安全区域：±250，超出则死亡
+                const safeZone = 250;
+                if (Math.abs(this.group.position.x) > safeZone) {
+                    this.die();
+                    return;
+                }
+                
+                // 向前移动
                 this.group.position.z -= CONFIG.player.speed;
+                
+                // 转向时倾斜
                 this.group.rotation.z = this.turnDir * -0.3;
                 
+                // 发光效果动画
                 if (this.glow) {
                     this.glow.rotation.y += 0.05;
                     this.glow.scale.setScalar(1 + Math.sin(Date.now() * 0.003) * 0.1);
@@ -374,30 +408,45 @@
             }
         }
 
+        // ========== 障碍物管理类 ==========
+        // 负责生成、更新和碰撞检测障碍物
         class Obstacles {
             constructor(engine) {
                 this.engine = engine;
-                this.list = [];
-                this.spawn();
+                this.list = [];                    // 障碍物列表
+                this.nextWaveZ = -1500;            // 下一波障碍物的Z位置（从更远处开始）
             }
 
-            spawn() {
-                for (let i = 0; i < CONFIG.obstacles.count; i++) {
-                    const type = Math.floor(Math.random() * 3);
-                    const obj = this.createObstacle(type);
-                    obj.position.x = (Math.random() - 0.5) * (CONFIG.track.width - 100);
+            // 生成一波障碍物（3个障碍物，分别在左中右，但同一个Z位置）
+            spawnWave(playerZ) {
+                const lanes = [-150, 0, 150];
+                const waveZ = this.nextWaveZ;
+                
+                // 随机移除一个车道，留出通道
+                const gapLane = Math.floor(Math.random() * 3);
+                
+                lanes.forEach((laneX, index) => {
+                    if (index === gapLane) return; // 跳过缺口车道
+                    
+                    const obj = this.createObstacle(Math.floor(Math.random() * 3));
+                    obj.position.x = laneX + (Math.random() - 0.5) * 60;
                     obj.position.y = 20;
-                    obj.position.z = -i * CONFIG.obstacles.spacing - 200;
+                    obj.position.z = waveZ;
+                    
                     this.list.push(obj);
                     this.engine.scene.add(obj);
-                }
+                });
+                
+                // 更新下一波的Z位置
+                this.nextWaveZ -= CONFIG.obstacles.waveSpacing;
             }
 
+            // 创建不同类型的障碍物
             createObstacle(type) {
                 let geo, mat, mesh;
                 
                 if (type === 0) {
-                    // Asteroid
+                    // 小行星
                     geo = new THREE.DodecahedronGeometry(22, 0);
                     mat = new THREE.MeshStandardMaterial({ 
                         color: 0x808080,
@@ -406,10 +455,10 @@
                     });
                     mesh = new THREE.Mesh(geo, mat);
                 } else if (type === 1) {
-                    // Space satellite
+                    // 太空卫星
                     const group = new THREE.Group();
                     
-                    // Main body
+                    // 主体
                     const bodyGeo = new THREE.BoxGeometry(20, 20, 20);
                     const bodyMat = new THREE.MeshStandardMaterial({ 
                         color: 0x4080ff,
@@ -419,7 +468,7 @@
                     const body = new THREE.Mesh(bodyGeo, bodyMat);
                     group.add(body);
                     
-                    // Solar panels
+                    // 太阳能板
                     const panelGeo = new THREE.BoxGeometry(40, 1, 15);
                     const panelMat = new THREE.MeshStandardMaterial({ 
                         color: 0x2040aa,
@@ -436,7 +485,7 @@
                     
                     mesh = group;
                 } else {
-                    // Space debris
+                    // 太空碎片
                     geo = new THREE.ConeGeometry(18, 36, 8);
                     mat = new THREE.MeshStandardMaterial({ 
                         color: 0xff8040,
@@ -450,13 +499,30 @@
                 return mesh;
             }
 
-            update() {
+            // 更新障碍物（旋转动画 + 动态生成和清理）
+            update(playerZ, playerX) {
+                // 旋转所有障碍物
                 this.list.forEach(obj => {
                     obj.rotation.x += 0.01;
                     obj.rotation.y += 0.02;
                 });
+
+                // 移除玩家后方的障碍物
+                this.list = this.list.filter(obj => {
+                    if (obj.position.z > playerZ + CONFIG.obstacles.cullDistance) {
+                        this.engine.scene.remove(obj);
+                        return false;
+                    }
+                    return true;
+                });
+
+                // 当需要补充障碍物时，生成新的一波
+                while (this.list.length < CONFIG.obstacles.maxVisible) {
+                    this.spawnWave(playerZ);
+                }
             }
 
+            // 检测玩家是否撞到障碍物
             checkHit(player) {
                 const pPos = player.getPos();
                 for (const obj of this.list) {
@@ -464,27 +530,32 @@
                         Math.pow(pPos.x - obj.position.x, 2) +
                         Math.pow(pPos.z - obj.position.z, 2)
                     );
-                    if (dist < 35) return true;
+                    if (dist < 30) return true;  // 碰撞半径30
                 }
                 return false;
             }
         }
 
+        // ========== 分数系统类 ==========
+        // 管理分数显示和更新
         class ScoreSystem {
             constructor() {
-                this.points = 0;
+                this.points = 0;                              // 当前分数
                 this.display = document.getElementById('score');
             }
 
+            // 更新分数（每次+1）
             update() {
                 this.points += 1;
                 this.display.textContent = this.points;
             }
 
+            // 显示最终分数（游戏结束时）
             showFinal() {
                 this.display.classList.add('ended');
             }
 
+            // 重置分数
             reset() {
                 this.points = 0;
                 this.display.textContent = '0';
@@ -492,44 +563,60 @@
             }
         }
 
+        // ========== 游戏控制器类 ==========
+        // 主控制器，协调所有游戏组件
         class GameController {
             constructor() {
-                this.engine = new GameEngine();
-                this.track = new Track(this.engine);
-                this.player = new Player(this.engine);
-                this.obstacles = new Obstacles(this.engine);
-                this.camera = new GameCamera(this.player);
-                this.score = new ScoreSystem();
-                this.running = true;
-                this.frameCount = 0;
+                this.engine = new GameEngine();              // 游戏引擎
+                this.track = new Track(this.engine);         // 赛道
+                this.player = new Player(this.engine);       // 玩家
+                this.obstacles = new Obstacles(this.engine); // 障碍物管理器
+                this.camera = new GameCamera(this.player);   // 相机
+                this.score = new ScoreSystem();              // 分数系统
+                this.running = true;                         // 游戏运行状态
+                this.frameCount = 0;                         // 帧计数器
 
+                // 绑定重启按钮
                 document.getElementById('restartBtn').addEventListener('click', () => this.restart());
+                // 监听窗口大小变化
                 window.addEventListener('resize', () => this.handleResize());
                 
                 this.loop();
             }
 
+            // 游戏主循环
             loop() {
                 requestAnimationFrame(() => this.loop());
                 
                 if (this.running) {
-                    this.player.update();
-                    this.obstacles.update();
-                    this.camera.updatePos();
+                    this.player.update();                                    // 更新玩家位置
                     
+                    // 检查玩家是否死亡（边界或碰撞）
+                    if (!this.player.alive) {
+                        this.gameOver();
+                        return;
+                    }
+                    
+                    const playerPos = this.player.getPos();
+                    this.obstacles.update(playerPos.z, playerPos.x);        // 更新障碍物（传入玩家X和Z坐标）
+                    this.camera.updatePos();                                 // 更新相机位置
+                    
+                    // 每10帧更新一次分数
                     this.frameCount++;
                     if (this.frameCount % 10 === 0) {
                         this.score.update();
                     }
 
+                    // 检测碰撞
                     if (this.obstacles.checkHit(this.player)) {
                         this.gameOver();
                     }
                 }
 
-                this.engine.render(this.camera);
+                this.engine.render(this.camera);  // 渲染场景
             }
 
+            // 游戏结束
             gameOver() {
                 this.running = false;
                 this.player.die();
@@ -539,10 +626,12 @@
                 document.getElementById('restartBtn').classList.add('show');
             }
 
+            // 重启游戏
             restart() {
                 location.reload();
             }
 
+            // 处理窗口大小变化
             handleResize() {
                 this.engine.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -550,7 +639,7 @@
             }
         }
 
-        // Initialize game
+        // 初始化游戏
         window.addEventListener('DOMContentLoaded', () => {
             if (typeof THREE !== 'undefined') {
                 try {
