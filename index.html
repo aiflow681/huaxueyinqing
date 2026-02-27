@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
-        body { background: #1a1a3e; }
+        body { background: #2a3a6e; }
         #canvas3d { width: 100%; height: 100%; display: block; }
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         .score { position: absolute; left: 5vw; bottom: 5vh; font-size: 6rem; font-weight: bold; color: #0ff; text-shadow: 0 0 20px #0ff; }
@@ -100,18 +100,18 @@
             // 初始化场景
             initScene() {
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x2a2a5e);  // 深紫色背景
-                this.scene.fog = new THREE.Fog(0x2a2a5e, 100, 600);  // 添加雾效
+                this.scene.background = new THREE.Color(0x4a5a8e);  // 更亮的蓝紫色背景
+                this.scene.fog = new THREE.Fog(0x4a5a8e, 100, 600);  // 雾效颜色也调亮
             }
 
             // 初始化灯光
             initLights() {
-                // 环境光
-                const ambient = new THREE.AmbientLight(0x6060a0, 0.8);
+                // 环境光 - 增加亮度
+                const ambient = new THREE.AmbientLight(0x8080c0, 1.2);
                 this.scene.add(ambient);
                 
-                // 方向光（用于阴影）
-                const directional = new THREE.DirectionalLight(0xa0a0ff, 1.0);
+                // 方向光（用于阴影）- 增加亮度
+                const directional = new THREE.DirectionalLight(0xc0c0ff, 1.5);
                 directional.position.set(100, 200, 100);
                 directional.castShadow = true;
                 this.scene.add(directional);
@@ -151,10 +151,10 @@
             }
 
             createFloor() {
-                // 主地面
+                // 主地面 - 更亮的颜色
                 const geo = new THREE.PlaneGeometry(CONFIG.track.width, CONFIG.track.length);
                 const mat = new THREE.MeshStandardMaterial({ 
-                    color: 0x3a3a6e, 
+                    color: 0x5a6a9e, 
                     metalness: 0.6, 
                     roughness: 0.3 
                 });
@@ -163,8 +163,8 @@
                 this.floor.receiveShadow = true;
                 this.engine.scene.add(this.floor);
 
-                // 网格线
-                const grid = new THREE.GridHelper(CONFIG.track.width, 30, 0x00ffff, 0x0060a0);
+                // 网格线 - 更亮
+                const grid = new THREE.GridHelper(CONFIG.track.width, 30, 0x40ffff, 0x2080c0);
                 grid.position.y = 1;
                 this.engine.scene.add(grid);
             }
@@ -417,25 +417,24 @@
                 this.nextWaveZ = -1500;            // 下一波障碍物的Z位置（从更远处开始）
             }
 
-            // 生成一波障碍物（3个障碍物，分别在左中右，但同一个Z位置）
+            // 生成一波障碍物（随机分布在3个车道中）
             spawnWave(playerZ) {
                 const lanes = [-150, 0, 150];
                 const waveZ = this.nextWaveZ;
                 
-                // 随机移除一个车道，留出通道
-                const gapLane = Math.floor(Math.random() * 3);
+                // 总是生成3个障碍物，但位置更随机
+                const shuffledLanes = lanes.sort(() => Math.random() - 0.5);
                 
-                lanes.forEach((laneX, index) => {
-                    if (index === gapLane) return; // 跳过缺口车道
-                    
+                for (let i = 0; i < 3; i++) {
                     const obj = this.createObstacle(Math.floor(Math.random() * 3));
-                    obj.position.x = laneX + (Math.random() - 0.5) * 60;
+                    // 在车道内随机偏移，覆盖更大范围
+                    obj.position.x = shuffledLanes[i] + (Math.random() - 0.5) * 100;
                     obj.position.y = 20;
                     obj.position.z = waveZ;
                     
                     this.list.push(obj);
                     this.engine.scene.add(obj);
-                });
+                }
                 
                 // 更新下一波的Z位置
                 this.nextWaveZ -= CONFIG.obstacles.waveSpacing;
@@ -530,7 +529,7 @@
                         Math.pow(pPos.x - obj.position.x, 2) +
                         Math.pow(pPos.z - obj.position.z, 2)
                     );
-                    if (dist < 30) return true;  // 碰撞半径30
+                    if (dist < 40) return true;  // 增加碰撞半径到40，更敏感
                 }
                 return false;
             }
@@ -575,6 +574,7 @@
                 this.score = new ScoreSystem();              // 分数系统
                 this.running = true;                         // 游戏运行状态
                 this.frameCount = 0;                         // 帧计数器
+                this.baseSpeed = CONFIG.player.speed;        // 基础速度
 
                 // 绑定重启按钮
                 document.getElementById('restartBtn').addEventListener('click', () => this.restart());
@@ -589,6 +589,10 @@
                 requestAnimationFrame(() => this.loop());
                 
                 if (this.running) {
+                    // 根据分数增加速度：每100分增加0.5速度
+                    const speedBoost = Math.floor(this.score.points / 100) * 0.5;
+                    CONFIG.player.speed = this.baseSpeed + speedBoost;
+                    
                     this.player.update();                                    // 更新玩家位置
                     
                     // 检查玩家是否死亡（边界或碰撞）
