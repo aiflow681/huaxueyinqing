@@ -135,8 +135,9 @@
             // 更新相机位置，跟随玩家
             updatePos() {
                 const pos = this.target.getPos();
-                this.position.set(pos.x, pos.y + this.offset.height, pos.z + this.offset.distance);
-                this.lookAt(pos.x, pos.y + 20, pos.z - 50);
+                // 相机X轴只跟随玩家一小部分，避免玩家移动到边缘时感觉障碍物都在另一边
+                this.position.set(pos.x * 0.3, pos.y + this.offset.height, pos.z + this.offset.distance);
+                this.lookAt(pos.x * 0.5, pos.y + 20, pos.z - 50);
             }
         }
 
@@ -379,8 +380,8 @@
                 // 左右移动
                 this.group.position.x += this.turnDir * CONFIG.player.turnSpeed;
                 
-                // 安全区域：±250，超出则死亡
-                const safeZone = 250;
+                // 安全区域：±260，超出则死亡（防止玩家躲在赛道边缘）
+                const safeZone = 260;
                 if (Math.abs(this.group.position.x) > safeZone) {
                     this.die();
                     return;
@@ -417,18 +418,22 @@
                 this.nextWaveZ = -1500;            // 下一波障碍物的Z位置（从更远处开始）
             }
 
-            // 生成一波障碍物（随机分布在3个车道中）
+            // 生成一波障碍物（随机分布在多个车道中）
             spawnWave(playerZ) {
-                const lanes = [-150, 0, 150];
+                // 扩大车道范围，覆盖整个赛道，防止玩家躲在边缘
+                const lanes = [-220, -110, 0, 110, 220];
                 const waveZ = this.nextWaveZ;
                 
-                // 总是生成3个障碍物，但位置更随机
+                // 随机打乱车道
                 const shuffledLanes = lanes.sort(() => Math.random() - 0.5);
                 
-                for (let i = 0; i < 3; i++) {
+                // 随机生成 2 到 3 个障碍物，确保有空隙让玩家穿过
+                const obstacleCount = Math.floor(Math.random() * 2) + 2;
+                
+                for (let i = 0; i < obstacleCount; i++) {
                     const obj = this.createObstacle(Math.floor(Math.random() * 3));
                     // 在车道内随机偏移，覆盖更大范围
-                    obj.position.x = shuffledLanes[i] + (Math.random() - 0.5) * 100;
+                    obj.position.x = shuffledLanes[i] + (Math.random() - 0.5) * 40;
                     obj.position.y = 20;
                     obj.position.z = waveZ;
                     
